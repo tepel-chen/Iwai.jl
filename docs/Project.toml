@@ -1,0 +1,6 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Iwai = "5715ea1d-2681-4c29-8656-382bac65f29d"
+
+[compat]
+Documenter = "1"
