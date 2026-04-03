@@ -1,5 +1,5 @@
 """
-    parse(source; optimize_buffer_size = true, autoescape = true, path = nothing) -> Template
+    parse(source; optimize_buffer_size = true, autoescape = true, path = nothing, root = nothing) -> Template
 
 Compile an IwaiEngine template from a string.
 
@@ -8,16 +8,18 @@ Compile an IwaiEngine template from a string.
 - `autoescape=true` enables HTML escaping for `{{ ... }}` expressions unless the
   value is marked with the `safe` filter or rendered inside `{% autoescape false %}`.
 - `path` is used to resolve relative `{% include %}` and `{% extends %}` paths.
+- `root` constrains file-backed template resolution to a specific directory tree.
 """
-function parse(source::AbstractString; optimize_buffer_size::Bool = true, autoescape::Bool = true, path::Union{Nothing,String} = nothing)::Template
+function parse(source::AbstractString; optimize_buffer_size::Bool = true, autoescape::Bool = true, path::Union{Nothing,String} = nothing, root::Union{Nothing,String} = nothing)::Template
     normalized = String(source)
-    body = compile_template(normalized, path, autoescape)
+    template_root = root === nothing ? default_template_root(path) : canonical_template_root(root)
+    body = compile_template(normalized, path, autoescape, template_root)
     render = eval(Expr(:->, Expr(:tuple, :(__iwai_template__), :(__iwai_init__)), body))
-    return Template(normalized, render, false, optimize_buffer_size, 0, autoescape, path)
+    return Template(normalized, render, false, optimize_buffer_size, 0, autoescape, path, template_root)
 end
 
-function compile_template(source::String, path::Union{Nothing,String} = nothing, autoescape::Bool = true)::Expr
-    tokens = preprocess_template(tokenize(source); path = path)
+function compile_template(source::String, path::Union{Nothing,String} = nothing, autoescape::Bool = true, root::Union{Nothing,String} = nothing)::Expr
+    tokens = preprocess_template(tokenize(source); path = path, root = root)
     body, index, _ = parse_nodes(tokens, 1, Set{String}(), Dict{Symbol,Any}(), autoescape)
     index > length(tokens) || throw(ArgumentError("Unexpected trailing template tokens"))
     statements = Any[:(io = create_output_buffer(__iwai_template__)), :(ctx = __iwai_init__)]
@@ -86,7 +88,7 @@ function tokens_to_source(tokens)::String
     return join(token_to_source.(tokens))
 end
 
-function preprocess_template(tokens; path::Union{Nothing,String} = nothing, overrides::Dict{String,Vector{Tuple{Symbol,String}}} = Dict{String,Vector{Tuple{Symbol,String}}}())
+function preprocess_template(tokens; path::Union{Nothing,String} = nothing, root::Union{Nothing,String} = nothing, overrides::Dict{String,Vector{Tuple{Symbol,String}}} = Dict{String,Vector{Tuple{Symbol,String}}}())
     parent_ref = nothing
     output = Tuple{Symbol,String}[]
     index = 1
@@ -102,7 +104,7 @@ function preprocess_template(tokens; path::Union{Nothing,String} = nothing, over
         elseif kind == :stmt && startswith(content, "block ")
             block_name, block_tokens, next_index = consume_named_block(tokens, index, "block ")
             replacement = get(overrides, block_name, block_tokens)
-            append!(output, preprocess_template(replacement; path = path))
+            append!(output, preprocess_template(replacement; path = path, root = root))
             index = next_index
             continue
         else
@@ -117,9 +119,9 @@ function preprocess_template(tokens; path::Union{Nothing,String} = nothing, over
 
     path === nothing && throw(ArgumentError("extends requires a file-backed template"))
     child_blocks = collect_named_blocks(tokens)
-    parent_path = resolve_relative_template_path(path, parent_ref)
+    parent_path = resolve_relative_template_path(path, parent_ref, root)
     parent_tokens = tokenize(read(parent_path, String))
-    return preprocess_template(parent_tokens; path = parent_path, overrides = child_blocks)
+    return preprocess_template(parent_tokens; path = parent_path, root = root, overrides = child_blocks)
 end
 
 function parse_extends_path(statement::String)::String
@@ -129,8 +131,8 @@ function parse_extends_path(statement::String)::String
     return parsed
 end
 
-function resolve_relative_template_path(current_path::AbstractString, include_path::AbstractString)::String
-    return resolve_template_path(current_path, include_path)
+function resolve_relative_template_path(current_path::AbstractString, include_path::AbstractString, root::Union{Nothing,String} = nothing)::String
+    return resolve_template_path(current_path, include_path; root = root)
 end
 
 function collect_named_blocks(tokens)

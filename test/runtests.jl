@@ -166,6 +166,32 @@ using Test
     end
 
     mktempdir() do tmpdir
+        mkpath(joinpath(tmpdir, "layouts"))
+        mkpath(joinpath(tmpdir, "admin", "posts"))
+        base_path = joinpath(tmpdir, "layouts", "base.iwai")
+        child_path = joinpath(tmpdir, "admin", "posts", "edit.iwai")
+
+        write(base_path, """
+<html>
+  <body>
+    {% block content %}<p>Base content</p>{% end %}
+  </body>
+</html>
+""")
+        write(child_path, """
+{% extends "../../layouts/base.iwai" %}
+{% block content %}
+<p>Hello {{ name }}</p>
+{% end %}
+""")
+
+        child = IwaiEngine.load(child_path; root = tmpdir)
+        rendered = child((name = "Nested",))
+        @test occursin("<p>Hello Nested</p>", rendered)
+        @test !occursin("Base content", rendered)
+    end
+
+    mktempdir() do tmpdir
         write(joinpath(tmpdir, "child.iwai"), "{% extends \"../base.iwai\" %}")
         write(joinpath(tmpdir, "..", "base.iwai"), "<p>escaped</p>")
 
@@ -177,6 +203,16 @@ using Test
         end
         @test err isa ArgumentError
         @test occursin("template path escapes root", sprint(showerror, err))
+    end
+
+    mktempdir() do tmpdir
+        mkpath(joinpath(tmpdir, "partials"))
+        mkpath(joinpath(tmpdir, "pages"))
+        write(joinpath(tmpdir, "partials", "nav.iwai"), "<nav>{{ title }}</nav>")
+        write(joinpath(tmpdir, "pages", "home.iwai"), "{% include \"../partials/nav.iwai\" %}")
+
+        home = IwaiEngine.load(joinpath(tmpdir, "pages", "home.iwai"); root = tmpdir)
+        @test home((title = "Docs",)) == "<nav>Docs</nav>"
     end
 
     auto = IwaiEngine.parse("""

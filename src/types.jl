@@ -13,6 +13,7 @@ mutable struct Template{F}
     max_output_bytes::Int
     autoescape::Bool
     path::Union{Nothing,String}
+    root::Union{Nothing,String}
 end
 
 to_context(init::NamedTuple) = init

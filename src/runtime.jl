@@ -170,8 +170,15 @@ function include_context(ctx::NamedTuple, locals)
     return (; pairs(ctx)..., locals...)
 end
 
-function template_root_path(current_path::AbstractString)::String
-    return realpath(dirname(abspath(String(current_path))))
+function default_template_root(current_path::Union{Nothing,AbstractString})::Union{Nothing,String}
+    current_path === nothing && return nothing
+    return canonical_template_root(dirname(abspath(String(current_path))))
+end
+
+function canonical_template_root(root::AbstractString)::String
+    candidate = abspath(String(root))
+    ispath(candidate) || throw(ArgumentError("template root does not exist: " * String(root)))
+    return realpath(candidate)
 end
 
 function is_within_template_root(path::AbstractString, root::AbstractString)::Bool
@@ -183,20 +190,21 @@ function is_within_template_root(path::AbstractString, root::AbstractString)::Bo
     return startswith(normalized_path, normalized_root * string(Base.Filesystem.path_separator))
 end
 
-function resolve_template_path(current_path::AbstractString, include_path::AbstractString)::String
-    root = template_root_path(current_path)
-    candidate = normpath(joinpath(root, String(include_path)))
+function resolve_template_path(current_path::AbstractString, include_path::AbstractString; root::Union{Nothing,String} = nothing)::String
+    base_dir = dirname(abspath(String(current_path)))
+    root_dir = root === nothing ? default_template_root(current_path) : canonical_template_root(root)
+    candidate = normpath(joinpath(base_dir, String(include_path)))
     ispath(candidate) || throw(ArgumentError("template path does not exist: " * String(include_path)))
 
     resolved = realpath(candidate)
-    is_within_template_root(resolved, root) || throw(ArgumentError("template path escapes root"))
+    root_dir === nothing || is_within_template_root(resolved, root_dir) || throw(ArgumentError("template path escapes root"))
     return resolved
 end
 
 function render_include(template, include_path, ctx, locals)
     template.path === nothing && throw(ArgumentError("include requires a file-backed template"))
-    child_path = resolve_template_path(template.path, String(include_path))
-    child = load(child_path; optimize_buffer_size = template.optimize_buffer_size)
+    child_path = resolve_template_path(template.path, String(include_path); root = template.root)
+    child = load(child_path; optimize_buffer_size = template.optimize_buffer_size, autoescape = template.autoescape, root = template.root)
     return child(include_context(ctx, locals))
 end
 
