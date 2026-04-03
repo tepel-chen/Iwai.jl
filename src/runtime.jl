@@ -108,12 +108,6 @@ end
 function lookup_global(::Val{sym}) where {sym}
     if isdefined(@__MODULE__, sym)
         return getfield(@__MODULE__, sym)
-    elseif isdefined(Base, sym)
-        return getfield(Base, sym)
-    elseif isdefined(Core, sym)
-        return getfield(Core, sym)
-    elseif isdefined(Main, sym)
-        return getfield(Main, sym)
     else
         throw(UndefVarError(sym))
     end
@@ -184,9 +178,6 @@ end
 function is_within_template_root(path::AbstractString, root::AbstractString)::Bool
     normalized_path = realpath(String(path))
     normalized_root = realpath(String(root))
-    if normalized_path == normalized_root
-        return true
-    end
     return startswith(normalized_path, normalized_root * string(Base.Filesystem.path_separator))
 end
 
@@ -224,7 +215,8 @@ end
 function try_length(iterable)
     try
         return length(iterable)
-    catch
+    catch err
+        err isa MethodError || rethrow()
         return nothing
     end
 end

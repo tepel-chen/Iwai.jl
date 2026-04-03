@@ -59,11 +59,7 @@ function tokenize(source::String)
                 raw_close === nothing && throw(ArgumentError("Unclosed raw block"))
                 raw_end = prevind(source, first(raw_close))
                 content_start = nextind(source, last(close_index))
-                if content_start <= raw_end
-                    push!(tokens, (:text, source[content_start:raw_end]))
-                else
-                    push!(tokens, (:text, ""))
-                end
+                push!(tokens, (:text, source[content_start:raw_end]))
                 cursor = nextind(source, last(raw_close))
             else
                 push!(tokens, (:stmt, statement))
@@ -174,8 +170,6 @@ function consume_named_block(tokens, start_index::Int, prefix::String)
                 closing = pop!(stack)
                 if isempty(stack)
                     return name, body, index + 1
-                elseif closing != "block"
-                    push!(body, token)
                 end
                 push!(body, token)
                 index += 1
