@@ -192,6 +192,34 @@ using Test
     end
 
     mktempdir() do tmpdir
+        base_path = joinpath(tmpdir, "base.iwai")
+        child_path = joinpath(tmpdir, "child.iwai")
+
+        write(base_path, """
+<section>
+  {% block content %}<p>Base</p>{% end %}
+</section>
+""")
+
+        write(child_path, """
+{% extends "base.iwai" %}
+{% block content %}
+<ul>
+{% for item in items %}
+  {% if item.show %}<li>{{ item.name }}</li>{% end %}
+{% end %}
+</ul>
+{% end %}
+""")
+
+        child = IwaiEngine.load(child_path)
+        rendered = child((items = [(name = "A", show = true), (name = "B", show = false)],))
+        @test occursin("<li>A</li>", replace(rendered, r"\s+" => ""))
+        @test !occursin("<li>B</li>", replace(rendered, r"\s+" => ""))
+        @test !occursin("Base", rendered)
+    end
+
+    mktempdir() do tmpdir
         write(joinpath(tmpdir, "child.iwai"), "{% extends \"../base.iwai\" %}")
         write(joinpath(tmpdir, "..", "base.iwai"), "<p>escaped</p>")
 
@@ -203,6 +231,28 @@ using Test
         end
         @test err isa ArgumentError
         @test occursin("template path escapes root", sprint(showerror, err))
+    end
+
+    @test_throws ArgumentError IwaiEngine.parse("{% if value %}missing end")
+    @test_throws ArgumentError IwaiEngine.parse("{% for item in items %}missing end")
+    @test_throws ArgumentError IwaiEngine.parse("{% autoescape false %}missing end")
+    @test_throws ArgumentError IwaiEngine.parse("{% else %}")
+    @test_throws ArgumentError IwaiEngine.parse("{% elseif value %}")
+    @test_throws ArgumentError IwaiEngine.parse("{% elif value %}")
+    @test_throws ArgumentError IwaiEngine.parse("{% end %}")
+
+    mktempdir() do tmpdir
+        broken_path = joinpath(tmpdir, "broken.iwai")
+        write(broken_path, "{% block content %}broken")
+
+        err = try
+            IwaiEngine.load(broken_path)
+            nothing
+        catch caught
+            caught
+        end
+        @test err isa ArgumentError
+        @test occursin("Unclosed block", sprint(showerror, err))
     end
 
     mktempdir() do tmpdir

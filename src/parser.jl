@@ -174,7 +174,7 @@ function consume_named_block(tokens, start_index::Int, prefix::String)
                 closing = pop!(stack)
                 if isempty(stack)
                     return name, body, index + 1
-                elseif closing != "block" || !isempty(stack)
+                elseif closing != "block"
                     push!(body, token)
                 end
                 index += 1
