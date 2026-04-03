@@ -177,6 +177,7 @@ function consume_named_block(tokens, start_index::Int, prefix::String)
                 elseif closing != "block"
                     push!(body, token)
                 end
+                push!(body, token)
                 index += 1
                 continue
             end

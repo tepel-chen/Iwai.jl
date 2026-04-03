@@ -175,6 +175,32 @@ using Test
     end
 
     mktempdir() do tmpdir
+        base_path = joinpath(tmpdir, "base.iwai")
+        child_path = joinpath(tmpdir, "child.iwai")
+
+        write(base_path, """
+<main>
+  {% block content %}<p>Base content</p>{% end %}
+</main>
+""")
+
+        write(child_path, """
+{% extends "base.iwai" %}
+{% block content %}
+<section>
+  {% block inner %}<p>Inner default</p>{% end %}
+</section>
+{% end %}
+""")
+
+        child = IwaiEngine.load(child_path)
+        rendered = child((;))
+        @test occursin("<section>", rendered)
+        @test occursin("Inner default", rendered)
+        @test !occursin("Base content", rendered)
+    end
+
+    mktempdir() do tmpdir
         mkpath(joinpath(tmpdir, "layouts"))
         mkpath(joinpath(tmpdir, "admin", "posts"))
         base_path = joinpath(tmpdir, "layouts", "base.iwai")
