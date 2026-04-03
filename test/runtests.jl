@@ -103,6 +103,15 @@ using Test
     end
 
     mktempdir() do tmpdir
+        mkpath(joinpath(tmpdir, "partials"))
+        write(joinpath(tmpdir, "partials", "hello.iwai"), "<span>Hello</span>")
+        write(joinpath(tmpdir, "page.iwai"), "<div>{% include \"partials/hello.iwai\" %}</div>")
+
+        page = IwaiEngine.load(joinpath(tmpdir, "page.iwai"); root = tmpdir)
+        @test page((;)) == "<div><span>Hello</span></div>"
+    end
+
+    mktempdir() do tmpdir
         parent_path = joinpath(tmpdir, "parent.iwai")
         escaped_path = joinpath(tmpdir, "..", "escaped.iwai")
         write(parent_path, "{% include \"../escaped.iwai\" %}")
@@ -264,6 +273,22 @@ using Test
 
         home = IwaiEngine.load(joinpath(tmpdir, "pages", "home.iwai"); root = tmpdir)
         @test home((title = "Docs",)) == "<nav>Docs</nav>"
+    end
+
+    mktempdir() do tmpdir
+        mkpath(joinpath(tmpdir, "partials"))
+        write(joinpath(tmpdir, "partials", "badge.iwai"), "<span>{{ title }} / {{ loop.index }}</span>")
+        write(joinpath(tmpdir, "page.iwai"), """
+{% set title = name|upper %}
+{% for item in items %}
+{% include "partials/badge.iwai" %}
+{% end %}
+""")
+
+        page = IwaiEngine.load(joinpath(tmpdir, "page.iwai"); root = tmpdir)
+        rendered = replace(page((name = "docs", items = [1, 2])), r"\s+" => "")
+        @test occursin("<span>DOCS/1</span>", rendered)
+        @test occursin("<span>DOCS/2</span>", rendered)
     end
 
     auto = IwaiEngine.parse("""

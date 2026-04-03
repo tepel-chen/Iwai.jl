@@ -205,7 +205,7 @@ function render_include(template, include_path, ctx, locals)
     template.path === nothing && throw(ArgumentError("include requires a file-backed template"))
     child_path = resolve_template_path(template.path, String(include_path); root = template.root)
     child = load(child_path; optimize_buffer_size = template.optimize_buffer_size, autoescape = template.autoescape, root = template.root)
-    return child(include_context(ctx, locals))
+    return Base.invokelatest(child, include_context(ctx, locals))
 end
 
 function truncate_suffix!(io::IOBuffer, suffix::AbstractString)::Nothing
