@@ -240,6 +240,7 @@ using Test
     @test_throws ArgumentError IwaiEngine.parse("{% elseif value %}")
     @test_throws ArgumentError IwaiEngine.parse("{% elif value %}")
     @test_throws ArgumentError IwaiEngine.parse("{% end %}")
+    @test_throws ArgumentError IwaiEngine.parse("{{ @time name }}")
 
     mktempdir() do tmpdir
         broken_path = joinpath(tmpdir, "broken.iwai")

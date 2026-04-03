@@ -335,7 +335,7 @@ function rewrite_expression(expr, bindings::Dict{Symbol,Any})
     expr isa Expr || return expr
 
     if expr.head == :macrocall
-        return expr
+        throw(ArgumentError("Macros are not supported in templates"))
     end
 
     return Expr(expr.head, map(arg -> rewrite_expression(arg, bindings), expr.args)...)
