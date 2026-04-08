@@ -7,7 +7,7 @@ Jinja-like template engine for Julia.
 
 Published docs:
 
-- https://tepel-chen.github.io/Iwai.jl/
+- https://tepel-chen.github.io/Iwai.jl/dev/
 
 IwaiEngine uses `NamedTuple` render contexts. Dictionary-based render contexts are not
 supported.
