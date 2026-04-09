@@ -4,3 +4,4 @@ IwaiEngine = "5715ea1d-2681-4c29-8656-382bac65f29d"
 
 [compat]
 Documenter = "1"
+IwaiEngine = "0.1.0"
